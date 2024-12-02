@@ -1,5 +1,10 @@
 import { InputText } from "@/components/helpers/FormInputs";
-import { setIsAdd } from "@/components/store/storeAction";
+import {
+  setIsAdd,
+  setMessage,
+  setSuccess,
+  setValidate,
+} from "@/components/store/storeAction";
 import { StoreContext } from "@/components/store/storeContext";
 import { Field, FieldArray, Form, Formik } from "formik";
 import { Minus, Plus, X } from "lucide-react";
@@ -7,22 +12,53 @@ import React from "react";
 import * as Yup from "Yup";
 import ModalWrapper from "../partials/modals/ModalWrapper";
 import SpinnerButton from "../partials/spinners/SpinnerButton";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryData } from "@/components/helpers/queryData";
 
-const ModalAddQuestion = () => {
+const ModalAddQuestion = ({ itemEdit }) => {
   const { dispatch } = React.useContext(StoreContext);
 
   const handleClose = () => {
     dispatch(setIsAdd(false));
   };
 
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (values) =>
+      queryData(
+        itemEdit ? `/v2/question/${itemEdit.question_aid}` : `/v2/question`,
+        itemEdit ? "put" : "post",
+        values
+      ),
+    onSuccess: (data) => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({
+        queryKey: ["question"],
+      });
+
+      // show error box
+      if (data.success) {
+        dispatch(setIsAdd(false));
+        dispatch(setSuccess(true));
+        dispatch(setMessage(" Added"));
+      } else {
+        dispatch(setValidate(true));
+        dispatch(setMessage(data.error));
+      }
+    },
+  });
+
   const initVal = {
-    question_title: "",
-    question_choices: [
-      {
-        choice: "",
-        isCorrect: "",
-      },
-    ],
+    question_title: itemEdit ? itemEdit.question_title : "",
+    question_title_old: itemEdit ? itemEdit.question_title : "",
+    question_choices: itemEdit
+      ? JSON.parse(itemEdit.question_choices)
+      : [
+          {
+            choice: "",
+            isCorrect: "",
+          },
+        ],
   };
   const yupSchema = Yup.object({
     question_title: Yup.string().required("Required"),
@@ -42,13 +78,13 @@ const ModalAddQuestion = () => {
             initialValues={initVal}
             validationSchema={yupSchema}
             onSubmit={async (values) => {
-              console.log(values);
+              mutation.mutate(values);
             }}
           >
             {(props) => {
               return (
                 <Form>
-                  <div className="modal-form h-full h-[calc(100vh-56px)] grid grid-rows-[1fr_auto]">
+                  <div className="modal-form h-[calc(100vh-56px)] grid grid-rows-[1fr_auto]">
                     <div className="form-wrapper p-4 max-h-[80vh] h-full overflow-y-auto custom-scroll">
                       <div className="input-wrap">
                         <InputText
@@ -110,8 +146,8 @@ const ModalAddQuestion = () => {
                     </div>
 
                     <div className="form-action flex p-4 justify-end gap-3">
-                      <button className="btn btn-add">
-                        <SpinnerButton />
+                      <button className="btn btn-add" type="submit">
+                        {mutation.isPending && <SpinnerButton />}
                         Save
                       </button>
                       <button className="btn btn-cancel" onClick={handleClose}>

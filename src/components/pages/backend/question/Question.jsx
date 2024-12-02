@@ -14,9 +14,10 @@ import ModalAddQuestion from "./ModalAddQuestion";
 
 const Question = () => {
   const { dispatch, store } = React.useContext(StoreContext);
-
+  const [itemEdit, setItemEdit] = React.useState(null);
   const handleAdd = () => {
     dispatch(setIsAdd(true));
+    setItemEdit(null);
   };
   return (
     <>
@@ -34,7 +35,7 @@ const Question = () => {
                 </button>
               </div>
 
-              <QuestionTableTable />
+              <QuestionTableTable setItemEdit={setItemEdit} />
             </div>
 
             <Footer />
@@ -44,7 +45,7 @@ const Question = () => {
       {store.validate && <ModalValidation />}
       {store.error && <ModalError />}
       {store.success && <ToastSuccess />}
-      {store.isAdd && <ModalAddQuestion />}
+      {store.isAdd && <ModalAddQuestion itemEdit={itemEdit} />}
     </>
   );
 };
